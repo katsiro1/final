@@ -23,7 +23,7 @@ before do
     @current_user = users_table.where(id: session["user_id"]).to_a[0]
 end
 
-# homepage and list of events (aka "index")
+
 get "/" do
     puts "params: #{params}"
 
@@ -38,8 +38,6 @@ get "/restaurants/new" do
 end
 
 
-
-# event details (aka "show")
 get "/restaurants/:id" do
     puts "params: #{params}"
 
@@ -56,7 +54,7 @@ get "/restaurants/:id" do
         @recommend_percent = 100 * recommend_count / review_count
     end
     results = Geocoder.search(@restaurant[:location])
-    coordinates = results.first.coordinates # => [lat, long]
+    coordinates = results.first.coordinates 
     @lat = coordinates[0]
   @long = coordinates[1]
   @lat_long = "#{@lat},#{@long}"
@@ -68,7 +66,8 @@ post "/restaurants/create" do
   
     restaurants_table.insert(
         title: params["title"],
-        location: params["location"]
+        location: params["location"],
+        description: params["description"]
     )
 
     view "create_restaurant"
@@ -138,16 +137,16 @@ get "/reviews/:id/destroy" do
     redirect "/restaurants/#{@restaurant[:id]}"
 end
 
-# display the signup form (aka "new")
+
 get "/users/new" do
     view "new_user"
 end
 
-# receive the submitted signup form (aka "create")
+
 post "/users/create" do
     puts "params: #{params}"
 
-    # if there's already a user with this email, skip!
+   
     existing_user = users_table.where(email: params["email"]).to_a[0]
     if existing_user
         view "error"
@@ -162,22 +161,20 @@ post "/users/create" do
     end
 end
 
-# display the login form (aka "new")
+
 get "/logins/new" do
     view "new_login"
 end
 
-# receive the submitted login form (aka "create")
+
 post "/logins/create" do
     puts "params: #{params}"
 
-    # step 1: user with the params["email"] ?
+   
     @user = users_table.where(email: params["email"]).to_a[0]
 
-    if @user
-        # step 2: if @user, does the encrypted password match?
+    if @user 
         if BCrypt::Password.new(@user[:password]) == params["password"]
-            # set encrypted cookie for logged in user
             session["user_id"] = @user[:id]
             redirect "/"
         else
@@ -188,9 +185,7 @@ post "/logins/create" do
     end
 end
 
-# logout user
 get "/logout" do
-    # remove encrypted cookie for logged out user
     session["user_id"] = nil
     redirect "/logins/new"
 end
