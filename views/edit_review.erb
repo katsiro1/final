@@ -1,0 +1,26 @@
+<h1>Edit Review for <%= @restaurant[:title] %></h1>
+
+<form action="/reviews/<%= @review[:id] %>/update" method="post">
+<div class="form-group">
+    <label>Date of Visit</label>
+    <textarea class="form-control" rows="1" name="date"></textarea>
+  </div>  
+<div class="form-group">
+    <label>Do you recommend?</label>
+    <select class="form-control" name="Recommend">
+      <% if @review[:recommend] %>
+        <option value="1" selected>Yes</option>
+        <option value="0">No</option>
+      <% else %>
+        <option value="1">Yes</option>
+        <option value="0" selected>No</option>
+      <% end %>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Comments</label>
+    <textarea class="form-control" rows="3" name="comments"><%= @review[:comments] %></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>

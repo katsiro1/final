@@ -4,7 +4,7 @@ require "sinatra/reloader" if development?                                      
 require "sequel"                                                                      #
 require "logger"                                                                      #
 require "twilio-ruby"                                                                 #
-require "bcrypt"                                                                      #
+require "bcrypt"                                                               #
 connection_string = ENV['DATABASE_URL'] || "sqlite://#{Dir.pwd}/development.sqlite3"  #
 DB ||= Sequel.connect(connection_string)                                              #
 DB.loggers << Logger.new($stdout) unless DB.loggers.size > 0                          #
@@ -13,10 +13,10 @@ use Rack::Session::Cookie, key: 'rack.session', path: '/', secret: 'secret'     
 before { puts; puts "--------------- NEW REQUEST ---------------"; puts }             #
 after { puts; }                                                                       #
 #######################################################################################
+require "geocoder"
 
-
-events_table = DB.from(:events)
-rsvps_table = DB.from(:rsvps)
+restaurants_table = DB.from(:restaurants)
+reviews_table = DB.from(:reviews)
 users_table = DB.from(:users)
 
 before do
@@ -27,91 +27,115 @@ end
 get "/" do
     puts "params: #{params}"
 
-    @events = events_table.all.to_a
-    pp @events
+    @restaurants = restaurants_table.all.to_a
+    pp @restaurants
 
-    view "events"
+    view "restaurants"
 end
 
+get "/restaurants/new" do
+    view "new_restaurant"
+end
+
+
+
 # event details (aka "show")
-get "/events/:id" do
+get "/restaurants/:id" do
     puts "params: #{params}"
 
     @users_table = users_table
-    @event = events_table.where(id: params[:id]).to_a[0]
-    pp @event
+    @restaurant = restaurants_table.where(id: params[:id]).to_a[0]
+    pp @restaurant
 
-    @rsvps = rsvps_table.where(event_id: @event[:id]).to_a
-    @going_count = rsvps_table.where(event_id: @event[:id], going: true).count
-
-    view "event"
+    @reviews = reviews_table.where(restaurant_id: @restaurant[:id]).to_a
+    recommend_count = reviews_table.where(restaurant_id: @restaurant[:id], recommend: true).count
+    review_count = reviews_table.where(restaurant_id: @restaurant[:id]).count
+    if review_count == 0
+        then @recommend_percent = 0
+    else
+        @recommend_percent = 100 * recommend_count / review_count
+    end
+    results = Geocoder.search(@restaurant[:location])
+    coordinates = results.first.coordinates # => [lat, long]
+    @lat = coordinates[0]
+  @long = coordinates[1]
+  @lat_long = "#{@lat},#{@long}"
+    view "restaurant"
 end
 
-# display the rsvp form (aka "new")
-get "/events/:id/rsvps/new" do
+post "/restaurants/create" do
     puts "params: #{params}"
-
-    @event = events_table.where(id: params[:id]).to_a[0]
-    view "new_rsvp"
-end
-
-# receive the submitted rsvp form (aka "create")
-post "/events/:id/rsvps/create" do
-    puts "params: #{params}"
-
-    # first find the event that rsvp'ing for
-    @event = events_table.where(id: params[:id]).to_a[0]
-    # next we want to insert a row in the rsvps table with the rsvp form data
-    rsvps_table.insert(
-        event_id: @event[:id],
-        user_id: session["user_id"],
-        comments: params["comments"],
-        going: params["going"]
+  
+    restaurants_table.insert(
+        title: params["title"],
+        location: params["location"]
     )
 
-    redirect "/events/#{@event[:id]}"
+    view "create_restaurant"
 end
 
-# display the rsvp form (aka "edit")
-get "/rsvps/:id/edit" do
+
+get "/restaurants/:id/reviews/new" do
     puts "params: #{params}"
 
-    @rsvp = rsvps_table.where(id: params["id"]).to_a[0]
-    @event = events_table.where(id: @rsvp[:event_id]).to_a[0]
-    view "edit_rsvp"
+
+    @restaurant = restaurants_table.where(id: params[:id]).to_a[0]
+view "new_review"
 end
 
-# receive the submitted rsvp form (aka "update")
-post "/rsvps/:id/update" do
+post "/restaurants/:id/reviews/create" do
     puts "params: #{params}"
 
-    # find the rsvp to update
-    @rsvp = rsvps_table.where(id: params["id"]).to_a[0]
-    # find the rsvp's event
-    @event = events_table.where(id: @rsvp[:event_id]).to_a[0]
+    @restaurant = restaurants_table.where(id: params[:id]).to_a[0]
+  
+    reviews_table.insert(
+        restaurant_id: @restaurant[:id],
+        user_id: session["user_id"],
+        date: params["date"],
+        comments: params["comments"],
+        recommend: params["recommend"]
+    )
 
-    if @current_user && @current_user[:id] == @rsvp[:id]
-        rsvps_table.where(id: params["id"]).update(
-            going: params["going"],
+    redirect "/restaurants/#{@restaurant[:id]}"
+end
+
+get "/reviews/:id/edit" do
+    puts "params: #{params}"
+
+    @review = reviews_table.where(id: params["id"]).to_a[0]
+    @restaurant = restaurants_table.where(id: @review[:restaurant_id]).to_a[0]
+    view "edit_review"
+end
+
+post "/reviews/:id/update" do
+    puts "params: #{params}"
+
+    @review = reviews_table.where(id: params["id"]).to_a[0]
+    
+    @restaurant = restaurants_table.where(id: @review[:restaurant_id]).to_a[0]
+
+    if @current_user && @current_user[:id] == @review[:id]
+        reviews_table.where(id: params["id"]).update(
+            recommend: params["recommend"],
             comments: params["comments"]
         )
 
-        redirect "/events/#{@event[:id]}"
+        redirect "/restaurants/#{@restaurant[:id]}"
     else
         view "error"
     end
 end
 
-# delete the rsvp (aka "destroy")
-get "/rsvps/:id/destroy" do
+
+get "/reviews/:id/destroy" do
     puts "params: #{params}"
 
-    rsvp = rsvps_table.where(id: params["id"]).to_a[0]
-    @event = events_table.where(id: rsvp[:event_id]).to_a[0]
+    review = reviews_table.where(id: params["id"]).to_a[0]
+    @restaurant = restaurants_table.where(id: review[:restaurant_id]).to_a[0]
 
-    rsvps_table.where(id: params["id"]).delete
+    reviews_table.where(id: params["id"]).delete
 
-    redirect "/events/#{@event[:id]}"
+    redirect "/restaurants/#{@restaurant[:id]}"
 end
 
 # display the signup form (aka "new")
@@ -170,4 +194,5 @@ get "/logout" do
     session["user_id"] = nil
     redirect "/logins/new"
 end
+
 

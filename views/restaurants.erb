@@ -1,0 +1,13 @@
+<h1>Restaurants</h1>
+
+<% for restaurant in @restaurants %>
+    <p><a href="/restaurants/<%= restaurant[:id] %>"><%= restaurant[:title] %></a></p>
+<% end %>
+
+<p class="mt-5">
+            <% if @current_user %>
+                <a href="/restaurants/new" class="btn btn-primary">Add New Restaurant!</a>
+            <% else %>
+                <a href="/logins/new" class="btn btn-danger">Please sign in to add restaurant</a>
+            <% end %>
+        </p>

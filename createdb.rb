@@ -6,18 +6,18 @@ DB = Sequel.connect(connection_string)                                          
 
 
 # New domain model - adds users
-DB.create_table! :events do
+DB.create_table! :restaurants do
   primary_key :id
   String :title
   String :description, text: true
-  String :date
   String :location
 end
-DB.create_table! :rsvps do
+DB.create_table! :reviews do
   primary_key :id
-  foreign_key :event_id
+  foreign_key :restaurant_id
   foreign_key :user_id
-  Boolean :going
+  String :date
+  Boolean :recommend
   String :comments, text: true
 end
 DB.create_table! :users do
@@ -28,16 +28,14 @@ DB.create_table! :users do
 end
 
 # Insert initial (seed) data
-events_table = DB.from(:events)
+restaurants_table = DB.from(:restaurants)
 
-events_table.insert(title: "Bacon Burger Taco Fest", 
-                    description: "Here we go again bacon burger taco fans, another Bacon Burger Taco Fest is here!",
-                    date: "June 21",
-                    location: "Kellogg Global Hub")
+restaurants_table.insert(title: "Mcdonalds", 
+                    description: "America's Favorite Fast Food Chain!",
+                    location: "Chicago")
 
-events_table.insert(title: "Kaleapolooza", 
-                    description: "If you're into nutrition and vitamins and stuff, this is the event for you.",
-                    date: "July 4",
-                    location: "Nowhere")
+restaurants_table.insert(title: "The Really Expensive Steakhouse", 
+                    description: "Everything's market price. If you have to ask, you can't afford it",
+                    location: "New York City")
 
 puts "Success!"
